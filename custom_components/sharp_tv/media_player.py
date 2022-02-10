@@ -1,12 +1,13 @@
 """Support for SHARP TV running """
 from datetime import timedelta
 import logging
-
+import paramiko
+import threading
 from requests import RequestException
 import voluptuous as vol
 
 from homeassistant import util
-from homeassistant.components.media_player import MediaPlayerDevice, PLATFORM_SCHEMA
+from homeassistant.components.media_player import MediaPlayerEntity, PLATFORM_SCHEMA
 from homeassistant.components.media_player.const import (
     SUPPORT_NEXT_TRACK,
     SUPPORT_PAUSE,
@@ -60,10 +61,10 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     name = config.get(CONF_NAME)
     port = config.get(CONF_PORT)
 
-    add_entities([SharpTVDevice(host, port, name)], True)
+    add_entities([SharpTVEntity(host, port, name)], True)
 
 
-class SharpTVDevice(MediaPlayerDevice):
+class SharpTVEntity(MediaPlayerEntity):
     """Representation of a LG TV."""
 
     def __init__(self, host, port, name):
@@ -90,6 +91,22 @@ class SharpTVDevice(MediaPlayerDevice):
             self._state = STATE_ON
         except socket.error as err:
             self._state = STATE_OFF
+    def ssh2(self,ip,port,username,passwd,cmd):
+        try:
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(ip,port,username,passwd,timeout=5)
+            for m in cmd:
+                stdin, stdout, stderr = ssh.exec_command(m)
+                # 简单交互，输入 ‘Y’
+                # stdin.write("Y")    
+                out = stdout.readlines()
+                # 屏幕输出
+                for o in out:
+                    print(o)
+            ssh.close()
+        except :
+        	print('%s\tError\n' %name)
 
     def update(self):
         self.send_command('test')
@@ -123,14 +140,19 @@ class SharpTVDevice(MediaPlayerDevice):
     def turn_on(self):
         """Wake the TV back up from sleep."""
         if self._state is not STATE_ON:
-            if self.hass.services.has_service('hdmi_cec','power_on'):
-                self.hass.services.call('hdmi_cec','power_on')
-            else:
-                _LOGGER.warning("hdmi_cec.power_on not exist!")
+            #if self.hass.services.has_service('hdmi_cec','power_on'):
+            #    self.hass.services.call('hdmi_cec','power_on')
+            #else:
+            #    _LOGGER.warning("hdmi_cec.power_on not exist!")
+            cmd = ['echo "on 0" | cec-client -s']
+            a=threading.Thread(target=self.ssh2,args=('192.168.199.5',22,'pi','yuan.1995.',cmd))
+            a.start()
+
 
     def turn_off(self):
         """Turn off media player."""
-        self.send_command('SPRC#DIRK#19#1#2#1|22#')
+        if self._state is not STATE_OFF:
+            self.send_command('SPRC#DIRK#19#1#2#1|22#')
 
     def volume_up(self):
         """Volume up the media player."""
