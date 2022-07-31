@@ -1,201 +1,107 @@
 """Support for SHARP TV running """
-from datetime import timedelta
-import logging
-import paramiko
-import threading
-from requests import RequestException
-import voluptuous as vol
+from __future__ import annotations
 
-from homeassistant import util
 from homeassistant.components.media_player import (
     MediaPlayerDeviceClass,
     MediaPlayerEntity,
     MediaPlayerEntityFeature,
 )
-from homeassistant.components.media_player import PLATFORM_SCHEMA
-from homeassistant.components.media_player.const import (
-    SUPPORT_NEXT_TRACK,
-    SUPPORT_PAUSE,
-    SUPPORT_PLAY,
-    SUPPORT_PREVIOUS_TRACK,
-    SUPPORT_SELECT_SOURCE,
-    SUPPORT_TURN_OFF,
-    SUPPORT_TURN_ON,
-    SUPPORT_VOLUME_MUTE,
-    SUPPORT_VOLUME_STEP,
-)
-from homeassistant.const import (
-    CONF_HOST,
-    CONF_NAME,
-    CONF_PORT,
-    STATE_ON,
-    STATE_OFF,
-    STATE_PAUSED,
-    STATE_PLAYING,
-)
-import homeassistant.helpers.config_validation as cv
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import STATE_OFF, STATE_PAUSED, STATE_PLAYING
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-_LOGGER = logging.getLogger(__name__)
+from .const import DOMAIN
 
-DEFAULT_NAME = "SHARP TV Remote"
-DEFAULT_PORT = 9688
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up Sharp TV Media Player from a config_entry."""
 
-SUPPORT_SHARPTV = (
-    SUPPORT_PAUSE
-    | SUPPORT_VOLUME_STEP
-    | SUPPORT_VOLUME_MUTE
-    | SUPPORT_PREVIOUS_TRACK
-    | SUPPORT_NEXT_TRACK
-    | SUPPORT_TURN_OFF
-    | SUPPORT_TURN_ON
-    | SUPPORT_PLAY
-)
+    coordinator = hass.data[DOMAIN][config_entry.entry_id]
+    unique_id = config_entry.unique_id
+    assert unique_id is not None
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {
-        vol.Required(CONF_HOST): cv.string,
-        vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-        vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
-    }
-)
+    async_add_entities(
+        [SharpTVMediaPlayer(coordinator, unique_id, config_entry.title)]
+    )
 
 
-def setup_platform(hass, config, add_entities, discovery_info=None):
-    """Set up the LG TV platform."""
-    host = config.get(CONF_HOST)
-    name = config.get(CONF_NAME)
-    port = config.get(CONF_PORT)
+class SharpTVMediaPlayer(SharpTVEntity, MediaPlayerEntity):
+    """Representation of a Sharp TV."""
 
-    add_entities([SharpTVEntity(host, port, name)], True)
-
-
-class SharpTVEntity(MediaPlayerEntity):
-    """Representation of a LG TV."""
-    
     _attr_device_class = MediaPlayerDeviceClass.TV
-
-    def __init__(self, host, port, name):
-        """Initialize the LG TV device."""
-        self._host = host
-        self._port = port
-        self._name = name
-        self._muted = False
-        # Assume that the TV is in Play mode
-        self._playing = True
-        self._volume = 0
-        self._state = None
-
-    def send_command(self, command):
-        """Send remote control commands to the TV."""
-        import socket
-        import time
-        s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-        s.settimeout(5)
-        try:
-            s.connect((self._host,self._port))
-            s.send(command.encode('utf-8'))
-            s.close()
-            self._state = STATE_ON
-        except socket.error as err:
-            self._state = STATE_OFF
-    def ssh2(self,ip,port,username,passwd,cmd):
-        try:
-            ssh = paramiko.SSHClient()
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(ip,port,username,passwd,timeout=5)
-            for m in cmd:
-                stdin, stdout, stderr = ssh.exec_command(m)
-                # 简单交互，输入 ‘Y’
-                # stdin.write("Y")    
-                out = stdout.readlines()
-                # 屏幕输出
-                for o in out:
-                    print(o)
-            ssh.close()
-        except :
-        	print('%s\tError\n' %name)
-
-    def update(self):
-        self.send_command('test')
+    _attr_supported_features = (
+        MediaPlayerEntityFeature.PAUSE
+        | MediaPlayerEntityFeature.VOLUME_STEP
+        | MediaPlayerEntityFeature.VOLUME_MUTE
+        | MediaPlayerEntityFeature.PREVIOUS_TRACK
+        | MediaPlayerEntityFeature.NEXT_TRACK
+        | MediaPlayerEntityFeature.TURN_ON
+        | MediaPlayerEntityFeature.TURN_OFF
+        | MediaPlayerEntityFeature.SELECT_SOURCE
+        | MediaPlayerEntityFeature.PLAY
+        | MediaPlayerEntityFeature.STOP
+    )
 
     @property
     def name(self):
         """Return the name of the device."""
-        return self._name
+        return self.coordinator._name
 
     @property
     def state(self):
         """Return the state of the device."""
-        return self._state
+        return self.coordinator._state
 
     @property
     def is_volume_muted(self):
         """Boolean if volume is currently muted."""
-        return self._muted
+        return self.coordinator._muted
 
     @property
     def volume_level(self):
         """Volume level of the media player (0..1)."""
-        return self._volume / 100.0
+        return self.coordinator._volume / 100.0
 
-    
-    @property
-    def supported_features(self):
-        """Flag media player features that are supported."""
-        return SUPPORT_SHARPTV
+    async def async_turn_on(self) -> None:
+        """Turn the device on."""
+        await self.coordinator.async_turn_on()
 
-    def turn_on(self):
-        """Wake the TV back up from sleep."""
-        if self._state is not STATE_ON:
-            #if self.hass.services.has_service('hdmi_cec','power_on'):
-            #    self.hass.services.call('hdmi_cec','power_on')
-            #else:
-            #    _LOGGER.warning("hdmi_cec.power_on not exist!")
-            cmd = ['echo "on 0" | cec-client -s']
-            a=threading.Thread(target=self.ssh2,args=('192.168.199.5',22,'pi','yuan.1995.',cmd))
-            a.start()
+    async def async_turn_off(self) -> None:
+        """Turn off device."""
+        await self.coordinator.async_turn_off()
 
+    async def async_volume_up(self) -> None:
+        """Send volume up command to device."""
+        await self.coordinator.async_volume_up()
 
-    def turn_off(self):
-        """Turn off media player."""
-        if self._state is not STATE_OFF:
-            self.send_command('SPRC#DIRK#19#1#2#1|22#')
+    async def async_volume_down(self) -> None:
+        """Send volume down command to device."""
+        await self.coordinator.async_volume_down()
 
-    def volume_up(self):
-        """Volume up the media player."""
-        self.send_command('SPRC#DIRK#19#1#2#1|20#')
+    async def async_mute_volume(self, mute: bool) -> None:
+        """Send mute command to device."""
+        await self.coordinator.async_mute_volume(mute)
 
-    def volume_down(self):
-        """Volume down media player."""
-        self.send_command('SPRC#DIRK#19#1#2#1|21#')
+    async def async_media_play(self) -> None:
+        """Send play command to device."""
+        await self.coordinator.async_media_play()
 
-    def mute_volume(self, mute):
-        """Send mute command."""
-        self.send_command('SPRC#DIRK#19#1#2#1|23#')
+    async def async_media_pause(self) -> None:
+        """Send pause command to device."""
+        await self.coordinator.async_media_pause()
 
-    def media_play_pause(self):
-        """Simulate play pause media player."""
-        if self._playing:
-            self.media_pause()
-        else:
-            self.media_play()
+    async def async_media_stop(self) -> None:
+        """Send stop command to device."""
+        await self.coordinator.async_volume_down()
 
-    def media_play(self):
-        """Send play command."""
-        self._playing = True
-        self._state = STATE_PLAYING
-        self.send_command('SPRC#DIRK#19#1#2#1|36#')
-
-    def media_pause(self):
-        """Send media pause command to media player."""
-        self._playing = False
-        self._state = STATE_PAUSED
-        self.send_command('SPRC#DIRK#19#1#2#1|36#')
-
-    def media_next_track(self):
+    async def async_media_next_track(self) -> None:
         """Send next track command."""
-        self.send_command('SPRC#DIRK#19#1#2#1|246#')
+        await self.coordinator.async_media_next_track()
 
-    def media_previous_track(self):
-        """Send the previous track command."""
-        self.send_command('SPRC#DIRK#19#1#2#1|245#')
+    async def async_media_previous_track(self) -> None:
+        """Send previous track command."""
+        await self.coordinator.async_media_previous_track()
