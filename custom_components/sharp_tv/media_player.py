@@ -7,7 +7,12 @@ from requests import RequestException
 import voluptuous as vol
 
 from homeassistant import util
-from homeassistant.components.media_player import MediaPlayerEntity, PLATFORM_SCHEMA
+from homeassistant.components.media_player import (
+    MediaPlayerDeviceClass,
+    MediaPlayerEntity,
+    MediaPlayerEntityFeature,
+)
+from homeassistant.components.media_player import PLATFORM_SCHEMA
 from homeassistant.components.media_player.const import (
     SUPPORT_NEXT_TRACK,
     SUPPORT_PAUSE,
@@ -66,6 +71,8 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 
 class SharpTVEntity(MediaPlayerEntity):
     """Representation of a LG TV."""
+    
+    _attr_device_class = MediaPlayerDeviceClass.TV
 
     def __init__(self, host, port, name):
         """Initialize the LG TV device."""
