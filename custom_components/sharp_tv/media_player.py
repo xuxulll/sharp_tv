@@ -12,6 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
+from .entity import SharpTVEntity
 
 async def async_setup_entry(
     hass: HomeAssistant,
