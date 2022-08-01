@@ -1,0 +1,24 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Device is already configured",
+            "invalid_unique_id": "Impossible to determine a valid unique id for the device"
+        },
+        "error": {
+            "cannot_connect": "Failed to connect",
+            "invalid_host": "Invalid hostname or IP address",
+            "unknown": "Unexpected error"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "server_ip": "IP address of the Sharp TV",
+                    "server_port": "Port of the Sharp TV remote control",
+                    "device_class": "The type of device",
+                    "host": "Host",
+                    "port": "Port"
+                }
+            }
+        }
+    }
+}
