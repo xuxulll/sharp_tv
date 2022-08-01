@@ -8,16 +8,11 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant import config_entries, exceptions
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PORT
-from homeassistant.core import callback
-from homeassistant.data_entry_flow import FlowResult
-import homeassistant.helpers.config_validation as cv
-
-
+from homeassistant import config_entries
+from homeassistant.const import CONF_HOST, CONF_PORT
 from .const import DOMAIN
 
+import homeassistant.helpers.config_validation as cv
 
 def host_valid(host: str) -> bool:
     """Return True if hostname or IP address is valid."""
@@ -33,13 +28,6 @@ class SharpTVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
-    def __init__(self) -> None:
-        """Initialize."""
-        self.host: str | None = None
-        self.title = ""
-        self.port: cv.port | None = None
-
-
     def getMac(
         self, ipaddr: str
     ) -> str:
@@ -50,7 +38,7 @@ class SharpTVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         mac = re.search(r"(([a-f\d]{1,2}\:){5}[a-f\d]{1,2})", s).groups()[0]
         return mac
 
-    async def async_step_user(self, user_input: None):
+    async def async_step_user(self, user_input=None):
         """Show the setup form to the user."""
         errors = {}
         if user_input is not None:
