@@ -37,7 +37,7 @@ class SharpTVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Initialize."""
         self.host: str | None = None
         self.title = ""
-        self.port: int | None = None
+        self.port: cv.port | None = None
 
 
     def getMac(
@@ -55,17 +55,18 @@ class SharpTVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
         if user_input is not None:
             # Validate user input
-            valid = host_valid(user_input[CONF_HOST]) 
+            host = user_input[CONF_HOST]
+            valid = host_valid(host) 
             if valid:
                 unique_id = self.getMac(host)
                 if unique_id is not None:
                     await self.async_set_unique_id(unique_id)
-                self._abort_if_unique_id_configured()
+                    self._abort_if_unique_id_configured()
                 # See next section on create entry usage
-                return self.async_create_entry(
-                    title=user_input[CONF_HOST],
-                    data=user_input,
-                )
+                    return self.async_create_entry(
+                        title=host,
+                        data=user_input,
+                    )
 
             errors["base"] = "auth_error"
 
