@@ -15,7 +15,6 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 import homeassistant.helpers.config_validation as cv
 
-from . import _send_command
 
 from .const import (
     ATTR_CID,
