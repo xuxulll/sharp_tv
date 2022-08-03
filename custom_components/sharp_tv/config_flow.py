@@ -54,17 +54,10 @@ class SharpTVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         from subprocess import Popen, PIPE
         import re
 
-        pid = Popen(["arp", "-n", ipaddr], stdout=PIPE)
+        pid = Popen(["arp", "-a", ipaddr], stdout=PIPE)
         s = pid.communicate()[0]
         mac = re.search(r"(([a-f\d]{1,2}\:){5}[a-f\d]{1,2})", s).groups()[0]
         return mac
-
-    def getHwAddr(self, ifname: str) -> str:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        info = fcntl.ioctl(
-            s.fileno(), 0x8927, struct.pack("256s", bytes(ifname, "utf-8")[:15])
-        )
-        return ":".join("%02x" % b for b in info[18:24])
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
