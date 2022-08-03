@@ -1,12 +1,10 @@
 """Constants for Sharp TV integration."""
 from __future__ import annotations
 
-from typing import Final
+ATTR_CID = "cid"
+ATTR_MAC = "macAddr"
+ATTR_MANUFACTURER = "Sharp"
+ATTR_MODEL = "model"
 
-ATTR_CID: Final = "cid"
-ATTR_MAC: Final = "macAddr"
-ATTR_MANUFACTURER: Final = "Sharp"
-ATTR_MODEL: Final = "model"
-
-SHARP_CONFIG_FILE: Final = "sharp.conf"
-DOMAIN: Final = "sharptv"
+SHARP_CONFIG_FILE = "sharp_tv.conf"
+DOMAIN = "sharp_tv"

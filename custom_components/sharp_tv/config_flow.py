@@ -26,10 +26,11 @@ import homeassistant.helpers.config_validation as cv
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required("host"): str,
-        vol.Required("port"): str,
+        vol.Required(CONF_HOST): str,
+        vol.Required(CONF_PORT, default=9688): cv.port,
     }
 )
+
 
 def host_valid(host: str) -> bool:
     """Return True if hostname or IP address is valid."""
@@ -45,11 +46,10 @@ class SharpTVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
-    def getMac(
-        self, ipaddr: str
-    ) -> str:
+    def getMac(self, ipaddr: str) -> str:
         from subprocess import Popen, PIPE
         import re
+
         pid = Popen(["arp", "-n", ipaddr], stdout=PIPE)
         s = pid.communicate()[0]
         mac = re.search(r"(([a-f\d]{1,2}\:){5}[a-f\d]{1,2})", s).groups()[0]
@@ -69,13 +69,13 @@ class SharpTVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # Validate user input
         host = user_input[CONF_HOST]
 
-        valid = host_valid(host) 
+        valid = host_valid(host)
         if valid:
             unique_id = self.getMac(host)
             if unique_id is not None:
                 await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
-            # See next section on create entry usage
+                # See next section on create entry usage
                 return self.async_create_entry(
                     title=host,
                     data=user_input,
@@ -90,6 +90,7 @@ class SharpTVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_show_form(
                 step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
             )
+
 
 class CannotConnect(HomeAssistantError):
     """Error to indicate we cannot connect."""
