@@ -2,6 +2,10 @@
 from __future__ import annotations
 
 import logging
+import fcntl
+import socket
+import struct
+
 from typing import Any
 
 _LOGGER = logging.getLogger(__name__)
@@ -55,6 +59,13 @@ class SharpTVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         mac = re.search(r"(([a-f\d]{1,2}\:){5}[a-f\d]{1,2})", s).groups()[0]
         return mac
 
+    def getHwAddr(self, ifname: str) -> str:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        info = fcntl.ioctl(
+            s.fileno(), 0x8927, struct.pack("256s", bytes(ifname, "utf-8")[:15])
+        )
+        return ":".join("%02x" % b for b in info[18:24])
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -71,7 +82,7 @@ class SharpTVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         valid = host_valid(host)
         if valid:
-            unique_id = self.getMac(host)
+            unique_id = self.getHwAddr(host)
             if unique_id is not None:
                 await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
