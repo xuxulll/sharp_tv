@@ -75,7 +75,7 @@ class SharpTVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         valid = host_valid(host)
         if valid:
-            unique_id = self.getHwAddr(host)
+            unique_id = self.getMac(host)
             if unique_id is not None:
                 await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
